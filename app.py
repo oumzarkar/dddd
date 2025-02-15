@@ -74,36 +74,43 @@ def initialize_camera():
     global video_stream
     
     try:
-        # Use VideoStream with a warm-up period - this has proven most reliable
-        video_stream = VideoStream(src=0).start()
-        time.sleep(2.0)  # Generous warm-up time
+        # Try different camera indices
+        video_stream = cv2.VideoCapture(0)
         
-        # Test frame grab
-        frame = video_stream.read()
-        if frame is not None:
-            return True
+        # Set camera properties
+        video_stream.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+        video_stream.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+        
+        # Check if camera opened successfully
+        if not video_stream.isOpened():
+            raise Exception("Could not open camera")
+        
+        # Read a test frame
+        ret, frame = video_stream.read()
+        if not ret:
+            raise Exception("Could not read frame")
             
-        video_stream.stop()
+        return True
+            
     except Exception as e:
         print(f"Camera initialization failed: {e}")
         if video_stream is not None:
-            video_stream.stop()
-    
-    return False
+            video_stream.release()
+            video_stream = None
+        return False
 
 def generate_frames():
     global video_stream, COUNTER, stream_active, alarm_status, alarm_status2
     
     try:
-        if video_stream is None:
+        if video_stream is None or not video_stream.isOpened():
             if not initialize_camera():
-                raise Exception("Failed to initialize camera")
-            stream_active = True
-
-        while stream_active:
-            frame = video_stream.read()
-            if frame is None:
-                continue
+                return
+        
+        while True:
+            ret, frame = video_stream.read()
+            if not ret:
+                break
                 
             frame = imutils.resize(frame, width=450)
             gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
@@ -179,7 +186,7 @@ def generate_frames():
         print(f"Error in generate_frames: {e}")
     finally:
         if video_stream is not None:
-            video_stream.stop()
+            video_stream.release()
             video_stream = None
         stream_active = False
 
@@ -196,7 +203,7 @@ def video_feed():
     global stream_active, video_stream
     
     if video_stream is not None:
-        video_stream.stop()
+        video_stream.release()
         video_stream = None
     
     stream_active = True
@@ -213,7 +220,7 @@ def stop_stream():
     alarm_status2 = False
     
     if video_stream is not None:
-        video_stream.stop()
+        video_stream.release()
         video_stream = None
     
     return jsonify({"status": "success"})
