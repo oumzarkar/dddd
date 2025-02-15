@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Drowsiness Detection System - Monitor</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            position: relative;
+            color: white;
+            min-height: 100vh;
+            background: #1a1a1a;
+        }
+
+        html {
+            font-size: 16px;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: clamp(10px, 2vw, 20px);
+        }
+
+        .header {
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: clamp(1.5rem, 3vw, 2.5rem);
+            color: #4CAF50;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: clamp(0.9rem, 1.5vw, 1.2rem);
+        }
+
+        .control-panel {
+            background: rgba(255, 255, 255, 0.1);
+            padding: clamp(15px, 2vw, 20px);
+            border-radius: 15px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .control-btn {
+            padding: clamp(10px, 1.5vw, 12px) clamp(20px, 2.5vw, 30px);
+            margin: 0 10px;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: clamp(0.9rem, 1.5vw, 1.1rem);
+            min-width: 150px;
+        }
+
+        #enable-camera {
+            background: #2196F3;
+            color: white;
+        }
+
+        #start-detection {
+            background: #4CAF50;
+            color: white;
+            display: none;
+        }
+
+        #stop-detection {
+            background: #f44336;
+            color: white;
+            display: none;
+        }
+
+        .control-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .control-btn:disabled {
+            background: #cccccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        #status-message {
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 8px;
+            display: none;
+            font-weight: 500;
+        }
+
+        .video-container {
+            display: none;
+            margin: 20px auto;
+            width: 90%;
+            max-width: 640px;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+            background: #000;
+        }
+
+        #video-feed {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+
+        .back-btn {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            padding: clamp(8px, 1.5vw, 10px) clamp(15px, 2vw, 20px);
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: none;
+            border-radius: 20px;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            font-size: clamp(0.8rem, 1.2vw, 1rem);
+        }
+
+        .back-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .metrics {
+            display: flex;
+            justify-content: center;
+            gap: clamp(10px, 2vw, 20px);
+            flex-wrap: wrap;
+            margin: 20px 0;
+        }
+
+        .metric-card {
+            background: rgba(255, 255, 255, 0.1);
+            padding: clamp(10px, 2vw, 15px) clamp(15px, 3vw, 25px);
+            border-radius: 10px;
+            min-width: clamp(120px, 20vw, 150px);
+        }
+
+        .metric-card h3 {
+            color: #4CAF50;
+            margin-bottom: 5px;
+            font-size: clamp(0.9rem, 1.5vw, 1.1rem);
+        }
+
+        @keyframes blink {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        .alert {
+            animation: blink 1s infinite;
+            color: #f44336;
+        }
+
+        /* Media Queries */
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+
+            .control-panel {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .control-btn {
+                width: 80%;
+                max-width: 200px;
+            }
+
+            .metrics {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .metric-card {
+                width: 80%;
+                max-width: 200px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .header {
+                margin-bottom: 15px;
+            }
+
+            .control-btn {
+                width: 90%;
+            }
+
+            .video-container {
+                width: 95%;
+            }
+
+            .back-btn {
+                top: 10px;
+                left: 10px;
+            }
+        }
+
+        /* Landscape mode adjustments */
+        @media (max-height: 600px) and (orientation: landscape) {
+            .container {
+                padding-top: 60px;
+            }
+
+            .header {
+                margin-bottom: 10px;
+            }
+
+            .metrics {
+                flex-direction: row;
+            }
+        }
+    </style>
+</head>
+<body>
+    <a href="/" class="back-btn">← Back to Home</a>
+
+    <div class="container">
+        <div class="header">
+            <h1>Drowsiness Detection Monitor</h1>
+            <p>Real-time monitoring and alert system</p>
+        </div>
+
+        <div class="control-panel">
+            <button id="enable-camera" class="control-btn">Enable Camera</button>
+            <button id="start-detection" class="control-btn">Start Detection</button>
+            <button id="stop-detection" class="control-btn">Stop Detection</button>
+        </div>
+
+        <div id="status-message"></div>
+
+        <div class="metrics">
+            <div class="metric-card">
+                <h3>Eye Status</h3>
+                <p id="eye-status">Not Detected</p>
+            </div>
+            <div class="metric-card">
+                <h3>Yawn Status</h3>
+                <p id="yawn-status">Not Detected</p>
+            </div>
+        </div>
+
+        <div class="video-container">
+            <img id="video-feed" alt="Video feed">
+        </div>
+    </div>
+
+    <script>
+        const enableCameraBtn = document.getElementById('enable-camera');
+        const startDetectionBtn = document.getElementById('start-detection');
+        const stopDetectionBtn = document.getElementById('stop-detection');
+        const videoContainer = document.querySelector('.video-container');
+        const statusMessage = document.getElementById('status-message');
+        const videoFeed = document.getElementById('video-feed');
+        const eyeStatus = document.getElementById('eye-status');
+        const yawnStatus = document.getElementById('yawn-status');
+
+        // Initialize audio with preload
+        const drowsySound = new Audio('/static/wake_up.mp3');
+        const yawnSound = new Audio('/static/fresh_air.mp3');
+        drowsySound.preload = 'auto';
+        yawnSound.preload = 'auto';
+
+        // Add cooldown for alerts
+        let lastDrowsyAlert = 0;
+        let lastYawnAlert = 0;
+        const ALERT_COOLDOWN = 3000; // 3 seconds
+
+        let isDetectionRunning = false;
+
+        // Function to play alerts with cooldown
+        function playAlert(type) {
+            const now = Date.now();
+            if (type === 'drowsy' && now - lastDrowsyAlert > ALERT_COOLDOWN) {
+                drowsySound.currentTime = 0;
+                drowsySound.play().catch(e => console.error('Error playing drowsy sound:', e));
+                lastDrowsyAlert = now;
+                eyeStatus.textContent = "DROWSY!";
+                eyeStatus.classList.add('alert');
+            } else if (type === 'yawn' && now - lastYawnAlert > ALERT_COOLDOWN) {
+                yawnSound.currentTime = 0;
+                yawnSound.play().catch(e => console.error('Error playing yawn sound:', e));
+                lastYawnAlert = now;
+                yawnStatus.textContent = "YAWNING!";
+                yawnStatus.classList.add('alert');
+            }
+        }
+
+        enableCameraBtn.addEventListener('click', async () => {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                stream.getTracks().forEach(track => track.stop());
+                
+                enableCameraBtn.disabled = true;
+                startDetectionBtn.style.display = 'inline-block';
+                startDetectionBtn.disabled = false;
+                
+                statusMessage.style.display = 'block';
+                statusMessage.style.backgroundColor = '#d4edda';
+                statusMessage.style.color = '#155724';
+                statusMessage.textContent = 'Camera access granted! Click "Start Detection" to begin.';
+            } catch (err) {
+                statusMessage.style.display = 'block';
+                statusMessage.style.backgroundColor = '#f8d7da';
+                statusMessage.style.color = '#721c24';
+                if (err.name === 'NotAllowedError') {
+                    statusMessage.textContent = 'Camera access denied. Please allow camera access and try again.';
+                } else {
+                    statusMessage.textContent = 'Error accessing camera: ' + err.message;
+                }
+            }
+        });
+
+        startDetectionBtn.addEventListener('click', async () => {
+            try {
+                isDetectionRunning = true;
+                videoContainer.style.display = 'block';
+                videoFeed.style.display = 'block';
+                
+                // Pre-load sounds
+                drowsySound.load();
+                yawnSound.load();
+                
+                videoFeed.src = '/video_feed?' + new Date().getTime();
+                
+                fetch('/video_feed', {
+                    headers: {
+                        'Accept': 'multipart/x-mixed-replace; boundary=frame',
+                        'Cache-Control': 'no-cache'
+                    }
+                }).then(response => {
+                    const reader = response.body.getReader();
+                    return new ReadableStream({
+                        start(controller) {
+                            return pump();
+                            function pump() {
+                                if (!isDetectionRunning) {
+                                    controller.close();
+                                    return;
+                                }
+                                return reader.read().then(({done, value}) => {
+                                    if (done) {
+                                        controller.close();
+                                        return;
+                                    }
+                                    const text = new TextDecoder().decode(value);
+                                    if (text.includes('X-Drowsy: True')) {
+                                        playAlert('drowsy');
+                                    } else {
+                                        eyeStatus.textContent = "Normal";
+                                        eyeStatus.classList.remove('alert');
+                                    }
+                                    if (text.includes('X-Yawn: True')) {
+                                        playAlert('yawn');
+                                    } else {
+                                        yawnStatus.textContent = "Normal";
+                                        yawnStatus.classList.remove('alert');
+                                    }
+                                    controller.enqueue(value);
+                                    return pump();
+                                });
+                            }
+                        }
+                    });
+                });
+
+                startDetectionBtn.style.display = 'none';
+                stopDetectionBtn.style.display = 'inline-block';
+                statusMessage.style.backgroundColor = '#d4edda';
+                statusMessage.textContent = 'Drowsiness detection system is running...';
+            } catch (error) {
+                console.error('Error starting detection:', error);
+                isDetectionRunning = false;
+                statusMessage.style.backgroundColor = '#f8d7da';
+                statusMessage.textContent = 'Error starting detection. Please try again.';
+            }
+        });
+
+        stopDetectionBtn.addEventListener('click', async () => {
+            try {
+                isDetectionRunning = false;
+                
+                // Stop sounds
+                drowsySound.pause();
+                drowsySound.currentTime = 0;
+                yawnSound.pause();
+                yawnSound.currentTime = 0;
+                
+                // Stop the backend stream
+                await fetch('/stop_stream');
+                
+                // Reset UI
+                videoFeed.src = '';
+                videoFeed.style.display = 'none';
+                videoContainer.style.display = 'none';
+                stopDetectionBtn.style.display = 'none';
+                startDetectionBtn.style.display = 'inline-block';
+                startDetectionBtn.disabled = false;
+                
+                // Reset alert timers and status
+                lastDrowsyAlert = 0;
+                lastYawnAlert = 0;
+                eyeStatus.textContent = "Not Detected";
+                yawnStatus.textContent = "Not Detected";
+                eyeStatus.classList.remove('alert');
+                yawnStatus.classList.remove('alert');
+                
+                statusMessage.textContent = 'Detection stopped. Click "Start Detection" to begin again.';
+            } catch (error) {
+                console.error('Error stopping detection:', error);
+                statusMessage.style.backgroundColor = '#f8d7da';
+                statusMessage.textContent = 'Error stopping detection. Please refresh the page.';
+            }
+        });
+    </script>
+</body>
+</html> 
