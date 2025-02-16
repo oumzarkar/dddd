@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Drowsiness Detection System - Monitor</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            min-height: 100vh;
+            color: white;
+        }
+
+        html {
+            font-size: 16px;
+        }
+
+        .container {
+            max-width: 640px;
+            margin: 60px auto 0;
+            padding: 20px;
+            background-color: rgba(0, 0, 0, 0.3);
+            border-radius: 15px;
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+            backdrop-filter: blur(4px);
+        }
+
+        .header {
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: clamp(1.5rem, 3vw, 2.5rem);
+            color: #4CAF50;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: clamp(0.9rem, 1.5vw, 1.2rem);
+        }
+
+        .control-panel {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 20px;
+            gap: 15px;
+        }
+
+        .control-btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            background: linear-gradient(145deg, #4CAF50, #45a049);
+            color: white;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            transition: transform 0.2s, box-shadow 0.2s;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            min-width: 150px;
+        }
+
+        .control-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+        }
+
+        .control-btn:active {
+            transform: translateY(0);
+        }
+
+        #enable-camera, #start-detection {
+            display: inline-block;
+        }
+
+        #stop-detection {
+            display: none;
+            background: linear-gradient(145deg, #f44336, #d32f2f);
+        }
+
+        .control-btn:disabled {
+            background: #cccccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        #status-message {
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 8px;
+            display: none;
+            font-weight: 500;
+        }
+
+        .video-container {
+            width: 100%;
+            aspect-ratio: 4/3;
+            border-radius: 12px;
+            overflow: hidden;
+            background-color: #000;
+            display: none;
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+        }
+
+        #processedImage {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        .status-container {
+            margin-top: 20px;
+            display: flex;
+            justify-content: space-between;
+            gap: 15px;
+            display: none;
+        }
+
+        .status-box {
+            flex: 1;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            font-weight: bold;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            transition: transform 0.3s;
+        }
+
+        .status-box:hover {
+            transform: translateY(-2px);
+        }
+
+        .normal {
+            background: linear-gradient(145deg, #4CAF50, #45a049);
+            color: white;
+        }
+
+        .alert {
+            background: linear-gradient(145deg, #f44336, #d32f2f);
+            color: white;
+            animation: blink 1s infinite;
+        }
+
+        @keyframes blink {
+            50% { opacity: 0.7; }
+        }
+
+        /* Media Queries */
+        @media (max-width: 680px) {
+            body {
+                padding: 10px;
+            }
+            
+            .container {
+                margin-top: 80px;
+                padding: 10px;
+            }
+            
+            .video-container {
+                aspect-ratio: 3/4;
+            }
+            
+            .control-btn {
+                padding: 10px 20px;
+                font-size: 14px;
+            }
+            
+            .status-box {
+                padding: 12px;
+                font-size: 14px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .header {
+                margin-bottom: 15px;
+            }
+
+            .control-btn {
+                width: 90%;
+            }
+
+            .video-container {
+                width: 95%;
+            }
+
+            .back-btn {
+                top: 10px;
+                left: 10px;
+            }
+        }
+
+        /* Landscape mode adjustments */
+        @media (max-height: 600px) and (orientation: landscape) {
+            .container {
+                padding-top: 60px;
+            }
+
+            .header {
+                margin-bottom: 10px;
+            }
+
+            .metrics {
+                flex-direction: row;
+            }
+        }
+
+        .back-btn {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            background-color: rgba(255, 255, 255, 0.2);
+            color: white;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s;
+        }
+
+        .back-btn:hover {
+            background-color: rgba(255, 255, 255, 0.3);
+        }
+    </style>
+</head>
+<body>
+    
+
+    <div class="container">
+        <div class="header">
+            <h1>Drowsiness Detection Monitor</h1>
+            <p>Real-time monitoring and alert system</p>
+        </div>
+
+        <div class="control-panel">
+            <button id="enable-camera" class="control-btn">Enable Camera</button>
+            <button id="start-detection" class="control-btn" disabled>Start Detection</button>
+            <button id="stop-detection" class="control-btn">Stop Detection</button>
+        </div>
+
+        <div class="video-container">
+            <video id="videoElement" autoplay playsinline style="display: none;"></video>
+            <canvas id="canvasElement" style="display: none;"></canvas>
+            <img id="processedImage">
+        </div>
+
+        <div class="status-container">
+            <div id="eyeStatus" class="status-box normal">
+                Eyes: Open (EAR: 0.00)
+            </div>
+            <div id="yawnStatus" class="status-box normal">
+                Mouth: Normal (YAWN: 0.00)
+            </div>
+        </div>
+    </div>
+
+    <audio id="alertSound" src="/static/wake_up.mp3" preload="auto"></audio>
+    <audio id="yawnSound" src="/static/fresh_air.mp3" preload="auto"></audio>
+
+    <button onclick="window.location.href='/'" class="back-btn">← Back to Home</button>
+
+    <script>
+        let stream = null;
+        let isDetectionRunning = false;
+        let lastDrowsyAlert = 0;
+        let lastYawnAlert = 0;
+        const ALERT_COOLDOWN = 3000;
+
+        const video = document.getElementById('videoElement');
+        const canvas = document.getElementById('canvasElement');
+        const ctx = canvas.getContext('2d');
+        const processedImage = document.getElementById('processedImage');
+        const alertSound = document.getElementById('alertSound');
+        const yawnSound = document.getElementById('yawnSound');
+        const eyeStatus = document.getElementById('eyeStatus');
+        const yawnStatus = document.getElementById('yawnStatus');
+        const videoContainer = document.querySelector('.video-container');
+        const statusContainer = document.querySelector('.status-container');
+
+        // Function to get optimal camera resolution
+        function getOptimalResolution() {
+            if (window.innerWidth <= 680) {
+                return {
+                    width: { ideal: 480 },
+                    height: { ideal: 640 },
+                    facingMode: { ideal: 'user' }
+                };
+            }
+            return {
+                width: { ideal: 640 },
+                height: { ideal: 480 },
+                facingMode: { ideal: 'user' }
+            };
+        }
+
+        document.getElementById('enable-camera').addEventListener('click', async () => {
+            try {
+                const constraints = {
+                    video: getOptimalResolution()
+                };
+                
+                stream = await navigator.mediaDevices.getUserMedia(constraints);
+                video.srcObject = stream;
+                await video.play();
+                
+                // Set canvas size based on video dimensions
+                const setCanvasSize = () => {
+                    const videoAspectRatio = video.videoWidth / video.videoHeight;
+                    if (window.innerWidth <= 680) {
+                        canvas.width = Math.min(480, window.innerWidth - 40);
+                        canvas.height = canvas.width / videoAspectRatio;
+                    } else {
+                        canvas.width = 900;
+                        canvas.height = 600;
+                    }
+                };
+                
+                video.addEventListener('loadedmetadata', setCanvasSize);
+                window.addEventListener('resize', setCanvasSize);
+                
+                videoContainer.style.display = 'block';
+                statusContainer.style.display = 'flex';
+                
+                document.getElementById('start-detection').disabled = false;
+                document.getElementById('enable-camera').disabled = true;
+            } catch {
+                alert('Could not access camera. Please ensure you have given camera permissions.');
+            }
+        });
+
+        function updateStatus(ear, yawnValue, isDrowsy, isYawning) {
+            if (isDrowsy) {
+                eyeStatus.className = 'status-box alert';
+                eyeStatus.textContent = `Eyes: Closed! (EAR: ${ear.toFixed(2)})`;
+            } else {
+                eyeStatus.className = 'status-box normal';
+                eyeStatus.textContent = `Eyes: Open (EAR: ${ear.toFixed(2)})`;
+            }
+
+            if (isYawning) {
+                yawnStatus.className = 'status-box alert';
+                yawnStatus.textContent = `Mouth: Yawning! (YAWN: ${yawnValue.toFixed(2)})`;
+            } else {
+                yawnStatus.className = 'status-box normal';
+                yawnStatus.textContent = `Mouth: Normal (YAWN: ${yawnValue.toFixed(2)})`;
+            }
+        }
+
+        async function sendFrame() {
+            if (!isDetectionRunning) return;
+            
+            try {
+                // Ensure proper drawing of video frame
+                const videoAspectRatio = video.videoWidth / video.videoHeight;
+                let drawWidth = canvas.width;
+                let drawHeight = canvas.height;
+                let offsetX = 0;
+                let offsetY = 0;
+
+                // Maintain aspect ratio
+                if (canvas.width / canvas.height > videoAspectRatio) {
+                    drawWidth = canvas.height * videoAspectRatio;
+                    offsetX = (canvas.width - drawWidth) / 2;
+                } else {
+                    drawHeight = canvas.width / videoAspectRatio;
+                    offsetY = (canvas.height - drawHeight) / 2;
+                }
+
+                ctx.fillStyle = '#000';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.drawImage(video, offsetX, offsetY, drawWidth, drawHeight);
+                
+                const frameData = canvas.toDataURL('image/jpeg', 0.8);
+                
+                const response = await fetch('/process_frame', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ frame: frameData })
+                });
+                
+                const result = await response.json();
+                
+                if (result.processed_frame) {
+                    processedImage.src = result.processed_frame;
+                    
+                    updateStatus(
+                        result.ear_value, 
+                        result.yawn_value,
+                        result.drowsy_alert,
+                        result.yawn_alert
+                    );
+                    
+                    const currentTime = Date.now();
+                    
+                    if (result.drowsy_alert && currentTime - lastDrowsyAlert > ALERT_COOLDOWN) {
+                        alertSound.play();
+                        lastDrowsyAlert = currentTime;
+                    }
+                    
+                    if (result.yawn_alert && currentTime - lastYawnAlert > ALERT_COOLDOWN) {
+                        yawnSound.play();
+                        lastYawnAlert = currentTime;
+                    }
+                }
+                
+                if (isDetectionRunning) {
+                    requestAnimationFrame(sendFrame);
+                }
+            } catch {
+                if (isDetectionRunning) {
+                    setTimeout(sendFrame, 1000);
+                }
+            }
+        }
+
+        document.getElementById('start-detection').addEventListener('click', () => {
+            isDetectionRunning = true;
+            document.getElementById('start-detection').style.display = 'none';
+            document.getElementById('enable-camera').style.display = 'none';
+            document.getElementById('stop-detection').style.display = 'inline-block';
+            sendFrame();
+        });
+
+        document.getElementById('stop-detection').addEventListener('click', () => {
+            isDetectionRunning = false;
+            document.getElementById('stop-detection').style.display = 'none';
+            document.getElementById('start-detection').style.display = 'inline-block';
+            document.getElementById('enable-camera').style.display = 'inline-block';
+            document.getElementById('enable-camera').disabled = false;
+            document.getElementById('start-detection').disabled = true;
+            
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                video.srcObject = null;
+            }
+            
+            processedImage.src = '';
+            
+            // Hide video container and status boxes
+            videoContainer.style.display = 'none';
+            statusContainer.style.display = 'none';
+            
+            updateStatus(0.0, 0.0, false, false);
+        });
+    </script>
+</body>
+</html> 
